@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 from onmt.modules.sparse_activations import sparsemax
 from onmt.utils.misc import aeq, sequence_mask
-from torchsparseattn import Fusedmax
+from torchsparseattn import Fusedmax, Oscarmax
 
 # This class is mainly used by decoder.py for RNNs but also
 # by the CNN / transformer decoder when copy attention is used
@@ -78,7 +78,7 @@ class GlobalAttention(nn.Module):
             "Please select a valid attention type (got {:s}).".format(
                 attn_type))
         self.attn_type = attn_type
-        assert attn_func in ["softmax", "sparsemax", "fusedmax"], (
+        assert attn_func in ["softmax", "sparsemax", "fusedmax", "oscarmax"], (
             "Please select a valid attention function.")
         self.attn_func = attn_func
 
@@ -194,6 +194,12 @@ class GlobalAttention(nn.Module):
                 align_vectors = fusedmax(align.view(batch*target_l, source_l).cpu(), lengths=memory_lengths.cpu()).cuda()
             else:
                 align_vectors = fusedmax(align.view(batch*target_l, source_l).cpu(), lengths=None).cuda()
+        elif self.attn_func == "oscarmax":
+            oscarmax = Oscarmax()
+            if memory_lengths is not None:
+                align_vectors = oscarmax(align.view(batch*target_l, source_l).cpu(), lengths=memory_lengths.cpu()).cuda()
+            else:
+                align_vectors = oscarmax(align.view(batch*target_l, source_l).cpu(), lengths=None).cuda()
         else:
             raise NotImplementedError()
         align_vectors = align_vectors.view(batch, target_l, source_l)
