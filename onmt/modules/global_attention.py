@@ -190,7 +190,7 @@ class GlobalAttention(nn.Module):
             align_vectors = sparsemax(align.view(batch*target_l, source_l), -1)
         elif self.attn_func == "fusedmax":
             fusedmax = Fusedmax()
-            align_vectors = fusedmax(align.view(batch*target_l, source_l), lengths=memory_lengths)
+            align_vectors = fusedmax(align.view(batch*target_l, source_l).cpu(), lengths=memory_lengths)
         else:
             raise NotImplementedError()
         align_vectors = align_vectors.view(batch, target_l, source_l)
