@@ -5,6 +5,7 @@ import torch.nn.functional as F
 
 from onmt.modules.sparse_activations import sparsemax
 from onmt.utils.misc import aeq, sequence_mask
+from torchsparseattn import Fusedmax
 
 # This class is mainly used by decoder.py for RNNs but also
 # by the CNN / transformer decoder when copy attention is used
@@ -77,7 +78,7 @@ class GlobalAttention(nn.Module):
             "Please select a valid attention type (got {:s}).".format(
                 attn_type))
         self.attn_type = attn_type
-        assert attn_func in ["softmax", "sparsemax"], (
+        assert attn_func in ["softmax", "sparsemax", "fusedmax"], (
             "Please select a valid attention function.")
         self.attn_func = attn_func
 
@@ -185,8 +186,13 @@ class GlobalAttention(nn.Module):
         # Softmax or sparsemax to normalize attention weights
         if self.attn_func == "softmax":
             align_vectors = F.softmax(align.view(batch*target_l, source_l), -1)
-        else:
+        elif self.attn_func == "sparsemax":
             align_vectors = sparsemax(align.view(batch*target_l, source_l), -1)
+        elif self.attn_func == "fusedmax":
+            fusedmax = Fusedmax()
+            align_vectors = fusedmax(align.view(batch*target_l, source_l), lengths=memory_lengths)
+        else:
+            raise NotImplementedError()
         align_vectors = align_vectors.view(batch, target_l, source_l)
 
         # each context vector c_t is the weighted average
